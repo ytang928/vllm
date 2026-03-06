@@ -82,7 +82,8 @@ launch_disagg_prefill() {
 
   wait_for_server 8100
   wait_for_server 8200
-  python3 disagg_prefill_proxy_server.py &
+  # original: python3 disagg_prefill_proxy_server.py &
+  python3 disagg_prefill_proxy_server.py --kv-host $VLLM_HOST_IP &
   sleep 1
 }
 
