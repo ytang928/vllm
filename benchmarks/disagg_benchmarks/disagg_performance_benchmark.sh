@@ -94,8 +94,7 @@ benchmark() {
   model="meta-llama/Meta-Llama-3.1-8B-Instruct"
   dataset_name="sonnet"
   dataset_path="../sonnet_4x.txt"
-  # num_prompts=100
-  num_prompts=5
+  num_prompts=100
   qps=$1
   prefix_len=50
   input_len=1024
@@ -148,10 +147,10 @@ main() {
 
   export VLLM_HOST_IP=$(hostname -I | awk '{print $1}')
 
-  # launch_chunked_prefill
-  # for qps in 2 4 6 8; do
-  # benchmark $qps $default_output_len chunked_prefill
-  # done
+  launch_chunked_prefill
+  for qps in 2 4 6 8; do
+  benchmark $qps $default_output_len chunked_prefill
+  done
   kill_gpu_processes
 
   launch_disagg_prefill
