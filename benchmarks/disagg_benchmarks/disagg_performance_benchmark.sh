@@ -61,10 +61,14 @@ launch_disagg_prefill() {
   # original: CUDA_VISIBLE_DEVICES=0 vllm serve $model \
   #   --port 8100 --max-model-len 10000 --gpu-memory-utilization 0.6 \
   #   --kv-transfer-config '{"kv_connector":"P2pNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2,"kv_buffer_size":5e9}' &
+  # --enforce-eager is required: without it, FULL CUDA graph mode calls
+  # start_load_kv outside the forward context (attn_metadata=None),
+  # causing KV loading to be skipped entirely on the decode side.
   CUDA_VISIBLE_DEVICES=0 vllm serve $model \
     --port 8100 \
     --max-model-len 10000 \
     --gpu-memory-utilization 0.6 \
+    --enforce-eager \
     --kv-transfer-config \
     '{"kv_connector":"P2pNcclConnector","kv_role":"kv_producer","kv_buffer_size":"1e1","kv_port":"14579"}' &
 
@@ -75,6 +79,7 @@ launch_disagg_prefill() {
     --port 8200 \
     --max-model-len 10000 \
     --gpu-memory-utilization 0.6 \
+    --enforce-eager \
     --kv-transfer-config \
     '{"kv_connector":"P2pNcclConnector","kv_role":"kv_consumer","kv_buffer_size":"8e9","kv_port":"14580"}' &
 
