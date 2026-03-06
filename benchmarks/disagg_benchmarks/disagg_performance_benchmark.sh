@@ -58,21 +58,27 @@ launch_chunked_prefill() {
 launch_disagg_prefill() {
   model="meta-llama/Meta-Llama-3.1-8B-Instruct"
   # disagg prefill
+  # original: CUDA_VISIBLE_DEVICES=0 vllm serve $model \
+  #   --port 8100 --max-model-len 10000 --gpu-memory-utilization 0.6 \
+  #   --kv-transfer-config '{"kv_connector":"P2pNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2,"kv_buffer_size":5e9}' &
   CUDA_VISIBLE_DEVICES=0 vllm serve $model \
     --port 8100 \
     --max-model-len 10000 \
     --gpu-memory-utilization 0.6 \
+    --enforce-eager \
     --kv-transfer-config \
-    '{"kv_connector":"P2pNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2,"kv_buffer_size":5e9,"kv_port":14579}' &
-    # original: '{"kv_connector":"P2pNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2,"kv_buffer_size":5e9}' &
+    '{"kv_connector":"P2pNcclConnector","kv_role":"kv_producer","kv_buffer_size":"1e1","kv_port":"14579","kv_connector_extra_config":{"send_type":"PUT_ASYNC","nccl_num_channels":"16"}}' &
 
+  # original: CUDA_VISIBLE_DEVICES=1 vllm serve $model \
+  #   --port 8200 --max-model-len 10000 --gpu-memory-utilization 0.6 \
+  #   --kv-transfer-config '{"kv_connector":"P2pNcclConnector","kv_role":"kv_consumer","kv_rank":1,"kv_parallel_size":2,"kv_buffer_size":5e9}' &
   CUDA_VISIBLE_DEVICES=1 vllm serve $model \
     --port 8200 \
     --max-model-len 10000 \
     --gpu-memory-utilization 0.6 \
+    --enforce-eager \
     --kv-transfer-config \
-    '{"kv_connector":"P2pNcclConnector","kv_role":"kv_consumer","kv_rank":1,"kv_parallel_size":2,"kv_buffer_size":5e9,"kv_port":14580}' &
-    # original: '{"kv_connector":"P2pNcclConnector","kv_role":"kv_consumer","kv_rank":1,"kv_parallel_size":2,"kv_buffer_size":5e9}' &
+    '{"kv_connector":"P2pNcclConnector","kv_role":"kv_consumer","kv_buffer_size":"8e9","kv_port":"14580","kv_connector_extra_config":{"send_type":"PUT_ASYNC","nccl_num_channels":"16"}}' &
 
   wait_for_server 8100
   wait_for_server 8200
@@ -143,7 +149,7 @@ main() {
   # for qps in 2 4 6 8; do
   # benchmark $qps $default_output_len chunked_prefill
   # done
-  # kill_gpu_processes
+  kill_gpu_processes
 
   launch_disagg_prefill
   for qps in 2 4 6 8; do
