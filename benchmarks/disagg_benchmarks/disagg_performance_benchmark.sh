@@ -91,7 +91,8 @@ benchmark() {
   model="meta-llama/Meta-Llama-3.1-8B-Instruct"
   dataset_name="sonnet"
   dataset_path="../sonnet_4x.txt"
-  num_prompts=100
+  # num_prompts=100
+  num_prompts=5
   qps=$1
   prefix_len=50
   input_len=1024
