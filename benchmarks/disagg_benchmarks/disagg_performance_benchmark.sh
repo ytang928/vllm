@@ -92,23 +92,18 @@ launch_disagg_prefill() {
 benchmark() {
   results_folder="./results"
   model="Qwen/Qwen3-32B-FP8"
-  dataset_name="sonnet"
-  dataset_path="../sonnet_4x.txt"
-  num_prompts=100
+  # Switched from sonnet to ShareGPT for realistic workload
+  dataset_name="sharegpt"
+  dataset_path="../ShareGPT_V3_unfiltered_cleaned_split.json"
+  num_prompts=1000
   qps=$1
-  prefix_len=50
-  input_len=1024
-  output_len=$2
-  tag=$3
+  tag=$2
 
   vllm bench serve \
     --backend vllm \
     --model $model \
     --dataset-name $dataset_name \
     --dataset-path $dataset_path \
-    --sonnet-input-len $input_len \
-    --sonnet-output-len "$output_len" \
-    --sonnet-prefix-len $prefix_len \
     --num-prompts $num_prompts \
     --port 8000 \
     --save-result \
@@ -131,31 +126,29 @@ main() {
 
   cd "$(dirname "$0")"
 
-  cd ..
-  # create sonnet-4x.txt so that we can sample 2048 tokens for input
-  echo "" > sonnet_4x.txt
-  for _ in {1..4}
-  do
-    cat sonnet.txt >> sonnet_4x.txt
-  done
-  cd disagg_benchmarks
+  # cd ..
+  # # create sonnet-4x.txt so that we can sample 2048 tokens for input
+  # echo "" > sonnet_4x.txt
+  # for _ in {1..4}
+  # do
+  #   cat sonnet.txt >> sonnet_4x.txt
+  # done
+  # cd disagg_benchmarks
 
   rm -rf results
   mkdir results
-
-  default_output_len=6
 
   export VLLM_HOST_IP=$(hostname -I | awk '{print $1}')
 
   launch_chunked_prefill
   for qps in 2 4 6 8; do
-  benchmark $qps $default_output_len chunked_prefill
+  benchmark $qps chunked_prefill
   done
   kill_gpu_processes
 
   launch_disagg_prefill
   for qps in 2 4 6 8; do
-  benchmark $qps $default_output_len disagg_prefill
+  benchmark $qps disagg_prefill
   done
   kill_gpu_processes
 
