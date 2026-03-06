@@ -57,36 +57,34 @@ launch_chunked_prefill() {
 
 launch_disagg_prefill() {
   model="meta-llama/Meta-Llama-3.1-8B-Instruct"
-  # disagg prefill
-  # original: CUDA_VISIBLE_DEVICES=0 vllm serve $model \
-  #   --port 8100 --max-model-len 10000 --gpu-memory-utilization 0.6 \
-  #   --kv-transfer-config '{"kv_connector":"P2pNcclConnector","kv_role":"kv_producer","kv_rank":0,"kv_parallel_size":2,"kv_buffer_size":5e9}' &
-  # --enforce-eager is required: without it, FULL CUDA graph mode calls
-  # start_load_kv outside the forward context (attn_metadata=None),
-  # causing KV loading to be skipped entirely on the decode side.
-  CUDA_VISIBLE_DEVICES=0 vllm serve $model \
+  # disagg prefill using NixlConnector (switched from P2pNcclConnector)
+  # original P2P config commented out above in previous iterations.
+  CUDA_VISIBLE_DEVICES=0 \
+  UCX_NET_DEVICES=all \
+  VLLM_NIXL_SIDE_CHANNEL_PORT=5600 \
+  vllm serve $model \
     --port 8100 \
     --max-model-len 10000 \
     --gpu-memory-utilization 0.6 \
-    --enforce-eager \
     --kv-transfer-config \
-    '{"kv_connector":"P2pNcclConnector","kv_role":"kv_producer","kv_buffer_size":"1e1","kv_port":"14579"}' &
+    '{"kv_connector":"NixlConnector","kv_role":"kv_both"}' &
 
-  # original: CUDA_VISIBLE_DEVICES=1 vllm serve $model \
-  #   --port 8200 --max-model-len 10000 --gpu-memory-utilization 0.6 \
-  #   --kv-transfer-config '{"kv_connector":"P2pNcclConnector","kv_role":"kv_consumer","kv_rank":1,"kv_parallel_size":2,"kv_buffer_size":5e9}' &
-  CUDA_VISIBLE_DEVICES=1 vllm serve $model \
+  CUDA_VISIBLE_DEVICES=1 \
+  UCX_NET_DEVICES=all \
+  VLLM_NIXL_SIDE_CHANNEL_PORT=5700 \
+  vllm serve $model \
     --port 8200 \
     --max-model-len 10000 \
     --gpu-memory-utilization 0.6 \
-    --enforce-eager \
     --kv-transfer-config \
-    '{"kv_connector":"P2pNcclConnector","kv_role":"kv_consumer","kv_buffer_size":"8e9","kv_port":"14580"}' &
+    '{"kv_connector":"NixlConnector","kv_role":"kv_both"}' &
 
   wait_for_server 8100
   wait_for_server 8200
-  # original: python3 disagg_prefill_proxy_server.py &
-  python3 disagg_prefill_proxy_server.py --kv-host $VLLM_HOST_IP &
+  # original: python3 disagg_prefill_proxy_server.py --kv-host $VLLM_HOST_IP &
+  # Switched to toy_proxy_server.py for NixlConnector (sends kv_transfer_params).
+  # Defaults match: prefill=localhost:8100, decode=localhost:8200, proxy=8000.
+  python3 ../../tests/v1/kv_connector/nixl_integration/toy_proxy_server.py &
   sleep 1
 }
 
